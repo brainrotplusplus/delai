@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "delai"
+version = "0.1.0"
+description = "Data ingestion service for normalizing transit feeds."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31,<3.0",
+    "gtfs-realtime-bindings>=1.0,<2.0",
+    "protobuf>=4.24,<5.0",
+]
+authors = [
+    { name = "brainrotplusplus" }
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4,<9.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
