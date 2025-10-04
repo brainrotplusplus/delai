@@ -10,10 +10,17 @@ import requests
 
 from .processors import (
     StaticFeedInput,
+    ServiceAlertInput,
+    TripUpdateInput,
+    VehiclePositionInput,
     consolidate_static_feeds,
+    consolidate_service_alerts,
+    consolidate_trip_updates,
+    consolidate_vehicle_positions,
     convert_feed_to_json,
     determine_agency_id,
     extract_zip,
+    agency_id_from_filename,
 )
 from .sources.base import DataSource, DownloadTarget
 
@@ -68,6 +75,7 @@ class DownloadService:
                 results.extend(self._download_source(session, source))
 
         self._finalize_static_feeds(results)
+        self._finalize_realtime_feeds(results)
 
         return results
 
@@ -187,3 +195,97 @@ class DownloadService:
             LOGGER.exception("Failed to consolidate static GTFS bundles")
         else:
             LOGGER.info("Generated consolidated static bundle at %s", consolidated_path)
+
+    def _finalize_realtime_feeds(self, results: Sequence[DownloadResult]) -> None:
+        alerts_inputs: list[ServiceAlertInput] = []
+        service_alert_results = sorted(
+            (
+                result
+                for result in results
+                if result.output_path.suffix.lower() == ".pb"
+                and result.output_path.stem.startswith("ServiceAlerts_")
+            ),
+            key=lambda item: item.output_path.name,
+        )
+
+        for index, result in enumerate(service_alert_results):
+            agency_id = agency_id_from_filename(result.output_path, index)
+            alerts_inputs.append(ServiceAlertInput(result.output_path, agency_id))
+
+        if alerts_inputs:
+            output_path = service_alert_results[0].output_path.with_name("ServiceAlerts.pb")
+
+            try:
+                consolidated_alerts = consolidate_service_alerts(alerts_inputs, output_path)
+            except Exception:
+                LOGGER.exception("Failed to consolidate ServiceAlerts feeds")
+            else:
+                LOGGER.info("Generated consolidated ServiceAlerts feed at %s", consolidated_alerts)
+
+                try:
+                    convert_feed_to_json(consolidated_alerts)
+                except Exception:
+                    LOGGER.exception("Failed to render consolidated ServiceAlerts feed as JSON")
+
+        trip_inputs: list[TripUpdateInput] = []
+        trip_update_results = sorted(
+            (
+                result
+                for result in results
+                if result.output_path.suffix.lower() == ".pb"
+                and result.output_path.stem.startswith("TripUpdates_")
+            ),
+            key=lambda item: item.output_path.name,
+        )
+
+        for index, result in enumerate(trip_update_results):
+            agency_id = agency_id_from_filename(result.output_path, index)
+            trip_inputs.append(TripUpdateInput(result.output_path, agency_id))
+
+        if trip_inputs:
+            trip_output = trip_update_results[0].output_path.with_name("TripUpdates.pb")
+
+            try:
+                consolidated_trips = consolidate_trip_updates(trip_inputs, trip_output)
+            except Exception:
+                LOGGER.exception("Failed to consolidate TripUpdates feeds")
+            else:
+                LOGGER.info("Generated consolidated TripUpdates feed at %s", consolidated_trips)
+
+                try:
+                    convert_feed_to_json(consolidated_trips)
+                except Exception:
+                    LOGGER.exception("Failed to render consolidated TripUpdates feed as JSON")
+
+        vehicle_inputs: list[VehiclePositionInput] = []
+        vehicle_results = sorted(
+            (
+                result
+                for result in results
+                if result.output_path.suffix.lower() == ".pb"
+                and result.output_path.stem.startswith("VehiclePositions_")
+            ),
+            key=lambda item: item.output_path.name,
+        )
+
+        for index, result in enumerate(vehicle_results):
+            agency_id = agency_id_from_filename(result.output_path, index)
+            vehicle_inputs.append(VehiclePositionInput(result.output_path, agency_id))
+
+        if not vehicle_inputs:
+            return
+
+        vehicle_output = vehicle_results[0].output_path.with_name("VehiclePositions.pb")
+
+        try:
+            consolidated_vehicles = consolidate_vehicle_positions(vehicle_inputs, vehicle_output)
+        except Exception:
+            LOGGER.exception("Failed to consolidate VehiclePositions feeds")
+            return
+
+        LOGGER.info("Generated consolidated VehiclePositions feed at %s", consolidated_vehicles)
+
+        try:
+            convert_feed_to_json(consolidated_vehicles)
+        except Exception:
+            LOGGER.exception("Failed to render consolidated VehiclePositions feed as JSON")
