@@ -82,6 +82,7 @@ def test_service_downloads_files(tmp_path: Path) -> None:
         output_dir=tmp_path,
         session_factory=DummySessionFactory(),
         chunk_size=4,
+        cleanup_intermediate_files=False,
     )
 
     results = service.run()
@@ -144,6 +145,7 @@ def test_service_converts_realtime_feeds(tmp_path: Path) -> None:
         sources=[source],
         output_dir=tmp_path,
         session_factory=DummySessionFactory({url: payload}),
+        cleanup_intermediate_files=False,
     )
 
     results = service.run()
@@ -191,6 +193,7 @@ def test_service_extracts_static_zip(tmp_path: Path) -> None:
         sources=[source],
         output_dir=tmp_path,
         session_factory=DummySessionFactory({url: payload}),
+        cleanup_intermediate_files=False,
     )
 
     results = service.run()
@@ -208,3 +211,33 @@ def test_service_extracts_static_zip(tmp_path: Path) -> None:
 
     stops_content = (extracted_dir / "stops.txt").read_text(encoding="utf-8")
     assert "Stop A" in stops_content
+
+
+def test_service_cleans_intermediate_files_by_default(tmp_path: Path) -> None:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, mode="w") as zip_file:
+        zip_file.writestr("stops.txt", "stop_id,stop_name\n1,Stop A\n")
+        zip_file.writestr("routes.txt", "route_id,route_short_name\n10,Line 10\n")
+
+    payload = buffer.getvalue()
+
+    source = StaticZipSource()
+    url = source.iter_targets()[0].url
+    service = DownloadService(
+        sources=[source],
+        output_dir=tmp_path,
+        session_factory=DummySessionFactory({url: payload}),
+    )
+
+    results = service.run()
+
+    assert len(results) == 1
+    result = results[0]
+    original_zip = result.output_path
+    extracted_dir = result.derived_paths[0]
+
+    consolidated_zip = original_zip.parent / "GTFS_KRK.zip"
+
+    assert consolidated_zip.exists()
+    assert not original_zip.exists()
+    assert not extracted_dir.exists()

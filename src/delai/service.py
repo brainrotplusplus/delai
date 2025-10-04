@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,12 +52,14 @@ class DownloadService:
         session_factory: Callable[[], requests.Session] | None = None,
         timeout: int = DEFAULT_TIMEOUT,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
+        cleanup_intermediate_files: bool = True,
     ) -> None:
         self._sources = list(sources)
         self._output_dir = Path(output_dir)
         self._session_factory = session_factory or requests.Session
         self._timeout = timeout
         self._chunk_size = chunk_size
+        self._cleanup_enabled = cleanup_intermediate_files
 
     def run(self) -> list[DownloadResult]:
         if not self._sources:
@@ -66,16 +69,34 @@ class DownloadService:
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
         results: list[DownloadResult] = []
+        intermediate_paths: set[Path] = set()
+
         with self._session_factory() as session:
             session.headers.setdefault(
                 "User-Agent", "delai/0.1 (+https://github.com/brainrotplusplus/delai)"
             )
             for source in self._sources:
                 LOGGER.info("Processing source %s", source.name)
-                results.extend(self._download_source(session, source))
+                for result in self._download_source(session, source):
+                    results.append(result)
+                    intermediate_paths.add(result.output_path)
+                    intermediate_paths.update(result.derived_paths)
 
-        self._finalize_static_feeds(results)
-        self._finalize_realtime_feeds(results)
+        final_artifacts: set[Path] = set()
+        extra_intermediate: set[Path] = set()
+
+        static_artifacts, static_intermediate = self._finalize_static_feeds(results)
+        final_artifacts.update(static_artifacts)
+        extra_intermediate.update(static_intermediate)
+
+        realtime_artifacts, realtime_intermediate = self._finalize_realtime_feeds(results)
+        final_artifacts.update(realtime_artifacts)
+        extra_intermediate.update(realtime_intermediate)
+
+        intermediate_paths.update(extra_intermediate)
+
+        if self._cleanup_enabled:
+            self._cleanup_artifacts(intermediate_paths, final_artifacts)
 
         return results
 
@@ -166,7 +187,9 @@ class DownloadService:
 
         return generated
 
-    def _finalize_static_feeds(self, results: Sequence[DownloadResult]) -> None:
+    def _finalize_static_feeds(
+        self, results: Sequence[DownloadResult]
+    ) -> tuple[list[Path], list[Path]]:
         static_results = [
             result
             for result in results
@@ -174,7 +197,7 @@ class DownloadService:
         ]
 
         if not static_results:
-            return
+            return [], []
 
         static_results = sorted(static_results, key=lambda item: item.output_path.name)
         feeds: list[StaticFeedInput] = []
@@ -187,16 +210,23 @@ class DownloadService:
             feeds.append(StaticFeedInput(result.output_path, extracted_dir, agency_id))
 
         if not feeds:
-            return
+            return [], []
 
         try:
             consolidated_path = consolidate_static_feeds(feeds)
         except Exception:
             LOGGER.exception("Failed to consolidate static GTFS bundles")
-        else:
-            LOGGER.info("Generated consolidated static bundle at %s", consolidated_path)
+            return [], []
 
-    def _finalize_realtime_feeds(self, results: Sequence[DownloadResult]) -> None:
+        LOGGER.info("Generated consolidated static bundle at %s", consolidated_path)
+        return [consolidated_path], []
+
+    def _finalize_realtime_feeds(
+        self, results: Sequence[DownloadResult]
+    ) -> tuple[list[Path], list[Path]]:
+        final_artifacts: list[Path] = []
+        extra_intermediate: list[Path] = []
+
         alerts_inputs: list[ServiceAlertInput] = []
         service_alert_results = sorted(
             (
@@ -223,9 +253,13 @@ class DownloadService:
                 LOGGER.info("Generated consolidated ServiceAlerts feed at %s", consolidated_alerts)
 
                 try:
-                    convert_feed_to_json(consolidated_alerts)
+                    alerts_json = convert_feed_to_json(consolidated_alerts)
                 except Exception:
                     LOGGER.exception("Failed to render consolidated ServiceAlerts feed as JSON")
+                else:
+                    extra_intermediate.append(alerts_json)
+
+                final_artifacts.append(consolidated_alerts)
 
         trip_inputs: list[TripUpdateInput] = []
         trip_update_results = sorted(
@@ -253,9 +287,13 @@ class DownloadService:
                 LOGGER.info("Generated consolidated TripUpdates feed at %s", consolidated_trips)
 
                 try:
-                    convert_feed_to_json(consolidated_trips)
+                    trips_json = convert_feed_to_json(consolidated_trips)
                 except Exception:
                     LOGGER.exception("Failed to render consolidated TripUpdates feed as JSON")
+                else:
+                    extra_intermediate.append(trips_json)
+
+                final_artifacts.append(consolidated_trips)
 
         vehicle_inputs: list[VehiclePositionInput] = []
         vehicle_results = sorted(
@@ -272,20 +310,52 @@ class DownloadService:
             agency_id = agency_id_from_filename(result.output_path, index)
             vehicle_inputs.append(VehiclePositionInput(result.output_path, agency_id))
 
-        if not vehicle_inputs:
-            return
+        if vehicle_inputs:
+            vehicle_output = vehicle_results[0].output_path.with_name("VehiclePositions.pb")
 
-        vehicle_output = vehicle_results[0].output_path.with_name("VehiclePositions.pb")
+            try:
+                consolidated_vehicles = consolidate_vehicle_positions(vehicle_inputs, vehicle_output)
+            except Exception:
+                LOGGER.exception("Failed to consolidate VehiclePositions feeds")
+            else:
+                LOGGER.info("Generated consolidated VehiclePositions feed at %s", consolidated_vehicles)
 
+                try:
+                    vehicles_json = convert_feed_to_json(consolidated_vehicles)
+                except Exception:
+                    LOGGER.exception("Failed to render consolidated VehiclePositions feed as JSON")
+                else:
+                    extra_intermediate.append(vehicles_json)
+
+                final_artifacts.append(consolidated_vehicles)
+
+        return final_artifacts, extra_intermediate
+
+    def _cleanup_artifacts(self, artifacts: Iterable[Path], preserved: Iterable[Path]) -> None:
+        preserved_set = {Path(path) for path in preserved}
+        candidates = {Path(path) for path in artifacts}
+
+        for path in sorted(candidates, key=lambda item: len(item.parts), reverse=True):
+            if path in preserved_set:
+                continue
+
+            try:
+                if not path.exists():
+                    continue
+
+                if path.is_dir():
+                    if any(self._is_relative_to(target, path) for target in preserved_set):
+                        continue
+                    shutil.rmtree(path, ignore_errors=False)
+                else:
+                    path.unlink()
+            except Exception:
+                LOGGER.exception("Failed to remove intermediate artifact at %s", path)
+
+    @staticmethod
+    def _is_relative_to(child: Path, parent: Path) -> bool:
         try:
-            consolidated_vehicles = consolidate_vehicle_positions(vehicle_inputs, vehicle_output)
-        except Exception:
-            LOGGER.exception("Failed to consolidate VehiclePositions feeds")
-            return
-
-        LOGGER.info("Generated consolidated VehiclePositions feed at %s", consolidated_vehicles)
-
-        try:
-            convert_feed_to_json(consolidated_vehicles)
-        except Exception:
-            LOGGER.exception("Failed to render consolidated VehiclePositions feed as JSON")
+            child.relative_to(parent)
+            return True
+        except ValueError:
+            return False
