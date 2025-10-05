@@ -62,18 +62,14 @@ export function Incidents() {
       sent: false
     };
 
-    // Tutaj możesz dodać logikę wysyłania alertu
+
     console.log("Tworzenie nowego alertu:", newRouteAlert);
 
-    // Reset formularza
     setNewAlert({
       text: "",
       route: "A1",
       timeRange: "0:00 - 24:00"
     });
-
-    // Możesz też dodać alert do listy allAlerts jeśli chcesz
-    // allAlerts.unshift(newRouteAlert);
   };
 
   const getAnimationDelay = (index: number) => {

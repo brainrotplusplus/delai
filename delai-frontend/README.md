@@ -2,7 +2,11 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Before you begin, make sure you have the following tools installed on your system:
+- **Node.js** (version 18.18 or higher)
+- **npm** (automatically included with Node.js) or another package manager like `yarn`, `pnpm`, or `bun`.
+
+After that, run the development server:
 
 ```bash
 npm run dev
