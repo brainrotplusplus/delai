@@ -1,0 +1,11 @@
+/* CSS Variables for consistent styling */
+:export {
+  primaryColor: #3b82f6;
+  secondaryColor: #6b7280;
+  backgroundColor: #ffffff;
+  textPrimary: #111827;
+  textSecondary: #6b7280;
+  borderRadius: 0.375rem;
+  spacingMd: 1rem;
+  shadowMd: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}

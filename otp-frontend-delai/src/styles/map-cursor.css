@@ -1,0 +1,4 @@
+/* Nadpisuje domyślny kursor maplibre-gl na strzałkę */
+.maplibregl-canvas {
+  cursor: default !important;
+}
