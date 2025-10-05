@@ -9,6 +9,7 @@ from typing import Any
 from google.protobuf.json_format import ParseDict
 from google.transit import gtfs_realtime_pb2
 
+from ..utils.io import atomic_dump_json, atomic_write_bytes
 from .realtime import convert_feed_to_json
 
 LOGGER = logging.getLogger(__name__)
@@ -156,16 +157,14 @@ def _load_json_list(path: Path) -> list[Any]:
 
 def _write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
+    atomic_dump_json(path, payload)
 
 
 def _ensure_list_file(path: Path) -> None:
     if path.exists():
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("[]\n", encoding="utf-8")
+    atomic_dump_json(path, [])
 
 
 def _write_approved_protobuf(payload: dict[str, Any], destination: Path) -> Path:
@@ -191,6 +190,6 @@ def _write_approved_protobuf(payload: dict[str, Any], destination: Path) -> Path
     message = gtfs_realtime_pb2.FeedMessage()
     ParseDict(snapshot, message, ignore_unknown_fields=True)
 
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_bytes(message.SerializeToString())
+    payload = message.SerializeToString()
+    atomic_write_bytes(destination, payload)
     return destination

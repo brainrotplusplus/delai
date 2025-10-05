@@ -6,6 +6,8 @@ from typing import Sequence
 
 from google.transit import gtfs_realtime_pb2
 
+from ..utils.io import atomic_write_bytes
+
 _VARIANT_TO_AGENCY: dict[str, str] = {
     "A": "A1",
     "M": "A2",
@@ -92,8 +94,7 @@ def consolidate_service_alerts(
     if latest_timestamp:
         header.timestamp = latest_timestamp
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(merged.SerializeToString())
+    atomic_write_bytes(output_path, merged.SerializeToString())
     return output_path
 
 
@@ -168,8 +169,7 @@ def consolidate_trip_updates(
     if latest_timestamp:
         header.timestamp = latest_timestamp
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(merged.SerializeToString())
+    atomic_write_bytes(output_path, merged.SerializeToString())
     return output_path
 
 
@@ -231,6 +231,5 @@ def consolidate_vehicle_positions(
     if latest_timestamp:
         header.timestamp = latest_timestamp
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(merged.SerializeToString())
+    atomic_write_bytes(output_path, merged.SerializeToString())
     return output_path

@@ -6,6 +6,8 @@ from pathlib import Path
 from google.protobuf.json_format import MessageToDict
 from google.transit import gtfs_realtime_pb2
 
+from ..utils.io import atomic_dump_json
+
 
 class RealtimeFeedError(RuntimeError):
     """Raised when a realtime protobuf feed cannot be processed."""
@@ -38,10 +40,7 @@ def convert_feed_to_json(pb_path: Path, json_path: Path | None = None) -> Path:
 
     try:
         data = MessageToDict(feed, preserving_proto_field_name=True)
-        json_path.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
+        atomic_dump_json(json_path, data)
     except Exception as exc:  # pragma: no cover - defensive
         raise RealtimeFeedError(f"Failed to serialize realtime feed to JSON: {json_path}") from exc
 

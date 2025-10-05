@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from ..utils.io import atomic_write
+
 _STATIC_VARIANT_MAP = {
     "A": "A1",
     "M": "A2",
@@ -92,20 +94,21 @@ def consolidate_static_feeds(
                 continue
             _process_generic(extra_path, name, aggregated)
 
-    output_zip.parent.mkdir(parents=True, exist_ok=True)
+    def _write_bundle(temp_path: Path) -> None:
+        with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            for filename, data in sorted(aggregated.items()):
+                header = data.get("header", [])
+                rows = data.get("rows", [])
+                if not header:
+                    continue
+                buffer = io.StringIO()
+                writer = csv.DictWriter(buffer, fieldnames=header, lineterminator="\n")
+                writer.writeheader()
+                for row in rows:
+                    writer.writerow({field: row.get(field, "") for field in header})
+                bundle.writestr(filename, buffer.getvalue())
 
-    with zipfile.ZipFile(output_zip, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
-        for filename, data in sorted(aggregated.items()):
-            header = data.get("header", [])
-            rows = data.get("rows", [])
-            if not header:
-                continue
-            buffer = io.StringIO()
-            writer = csv.DictWriter(buffer, fieldnames=header, lineterminator="\n")
-            writer.writeheader()
-            for row in rows:
-                writer.writerow({field: row.get(field, "") for field in header})
-            bundle.writestr(filename, buffer.getvalue())
+    atomic_write(output_zip, _write_bundle)
 
     return output_zip
 
