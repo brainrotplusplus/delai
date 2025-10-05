@@ -24,6 +24,8 @@ def static_dirs(tmp_path: Path) -> list[StaticFeedInput]:
         ("GTFS_KRK_A", "A1", False),
         ("GTFS_KRK_M", "A2", True),
         ("GTFS_KRK_T", "A3", True),
+        ("kml-ska-gtfs", "A4", False),
+        ("ald-gtfs", "A5", False),
     ]
 
     for name, agency_id, include_mail in specs:
@@ -55,27 +57,51 @@ def test_consolidate_static_feeds(static_dirs: list[StaticFeedInput], tmp_path: 
 
     with zipfile.ZipFile(output_zip) as archive:
         agency_rows = _read_csv_from_zip(archive, "agency.txt")
-        assert {row["agency_id"] for row in agency_rows} == {"A1", "A2", "A3"}
+        assert {row["agency_id"] for row in agency_rows} == {"A1", "A2", "A3", "A4", "A5"}
         assert "agency_email" in agency_rows[0]
 
         calendar_rows = _read_csv_from_zip(archive, "calendar.txt")
-        assert all(row["service_id"].startswith(("A1_", "A2_", "A3_")) for row in calendar_rows)
+        assert all(
+            row["service_id"].startswith(("A1_", "A2_", "A3_", "A4_", "A5_"))
+            for row in calendar_rows
+        )
 
         routes_rows = _read_csv_from_zip(archive, "routes.txt")
-        assert all(row["route_id"].startswith(("A1_", "A2_", "A3_")) for row in routes_rows)
-        assert {row["agency_id"] for row in routes_rows} == {"A1", "A2", "A3"}
+        assert all(
+            row["route_id"].startswith(("A1_", "A2_", "A3_", "A4_", "A5_"))
+            for row in routes_rows
+        )
+        assert {row["agency_id"] for row in routes_rows} == {"A1", "A2", "A3", "A4", "A5"}
 
         stops_rows = _read_csv_from_zip(archive, "stops.txt")
-        assert all(row["stop_id"].startswith(("A1_", "A2_", "A3_")) for row in stops_rows)
+        assert all(
+            row["stop_id"].startswith(("A1_", "A2_", "A3_", "A4_", "A5_"))
+            for row in stops_rows
+        )
 
         stop_times_rows = _read_csv_from_zip(archive, "stop_times.txt")
-        assert all(row["trip_id"].startswith(("A1_", "A2_", "A3_")) for row in stop_times_rows)
-        assert all(row["stop_id"].startswith(("A1_", "A2_", "A3_")) for row in stop_times_rows)
+        assert all(
+            row["trip_id"].startswith(("A1_", "A2_", "A3_", "A4_", "A5_"))
+            for row in stop_times_rows
+        )
+        assert all(
+            row["stop_id"].startswith(("A1_", "A2_", "A3_", "A4_", "A5_"))
+            for row in stop_times_rows
+        )
 
         trips_rows = _read_csv_from_zip(archive, "trips.txt")
-        assert all(row["trip_id"].startswith(("A1_", "A2_", "A3_")) for row in trips_rows)
-        assert all(row["route_id"].startswith(("A1_", "A2_", "A3_")) for row in trips_rows)
-        assert all(row["service_id"].startswith(("A1_", "A2_", "A3_")) for row in trips_rows)
+        assert all(
+            row["trip_id"].startswith(("A1_", "A2_", "A3_", "A4_", "A5_"))
+            for row in trips_rows
+        )
+        assert all(
+            row["route_id"].startswith(("A1_", "A2_", "A3_", "A4_", "A5_"))
+            for row in trips_rows
+        )
+        assert all(
+            row["service_id"].startswith(("A1_", "A2_", "A3_", "A4_", "A5_"))
+            for row in trips_rows
+        )
 
 
         assert "blocks.txt" in archive.namelist()
@@ -85,8 +111,10 @@ def test_determine_agency_id_default(tmp_path: Path) -> None:
     assert determine_agency_id(tmp_path / "GTFS_KRK_A.zip", 0) == "A1"
     assert determine_agency_id(tmp_path / "GTFS_KRK_M.zip", 1) == "A2"
     assert determine_agency_id(tmp_path / "GTFS_KRK_T.zip", 2) == "A3"
+    assert determine_agency_id(tmp_path / "kml-ska-gtfs.zip", 3) == "A4"
+    assert determine_agency_id(tmp_path / "ald-gtfs.zip", 4) == "A5"
     assert determine_agency_id(tmp_path / "unknown.zip", 0) == "A1"
-    assert determine_agency_id(tmp_path / "mystery.zip", 4) == "A5"
+    assert determine_agency_id(tmp_path / "mystery.zip", 5) == "A6"
 
 
 def _write_agency(path: Path, include_mail: bool) -> None:

@@ -6,6 +6,7 @@ from typing import Iterable
 from .base import DataSource, DownloadTarget
 
 BASE_URL = "https://gtfs.ztp.krakow.pl"
+KOLEJE_BASE_URL = "https://kolejemalopolskie.com.pl/rozklady_jazdy"
 
 
 class KrakowGTFSDataSource(DataSource):
@@ -22,16 +23,40 @@ class KrakowGTFSDataSource(DataSource):
 def _build_targets() -> list[DownloadTarget]:
     targets: list[DownloadTarget] = []
 
-    for filename in (
-        "GTFS_KRK_A.zip",
-        "GTFS_KRK_M.zip",
-        "GTFS_KRK_T.zip",
-    ):
+    static_files = [
+        (
+            "GTFS_KRK_A.zip",
+            f"{BASE_URL}/GTFS_KRK_A.zip",
+            "Static GTFS schedule bundle (agglomeration)",
+        ),
+        (
+            "GTFS_KRK_M.zip",
+            f"{BASE_URL}/GTFS_KRK_M.zip",
+            "Static GTFS schedule bundle (metropolitan)",
+        ),
+        (
+            "GTFS_KRK_T.zip",
+            f"{BASE_URL}/GTFS_KRK_T.zip",
+            "Static GTFS schedule bundle (tram)",
+        ),
+        (
+            "kml-ska-gtfs.zip",
+            f"{KOLEJE_BASE_URL}/kml-ska-gtfs.zip",
+            "Static GTFS schedule bundle (Koleje Małopolskie SKA)",
+        ),
+        (
+            "ald-gtfs.zip",
+            f"{KOLEJE_BASE_URL}/ald-gtfs.zip",
+            "Static GTFS schedule bundle (ALD)",
+        ),
+    ]
+
+    for filename, url, description in static_files:
         targets.append(
             DownloadTarget(
                 relative_path=Path("static") / filename,
-                url=f"{BASE_URL}/{filename}",
-                description="Static GTFS schedule bundle",
+                url=url,
+                description=description,
             )
         )
 

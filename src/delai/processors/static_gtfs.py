@@ -13,6 +13,11 @@ _STATIC_VARIANT_MAP = {
     "T": "A3",
 }
 
+_STATIC_STEM_MAP = {
+    "KML-SKA-GTFS": "A4",
+    "ALD-GTFS": "A5",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class StaticFeedInput:
@@ -25,8 +30,14 @@ class StaticFeedInput:
 
 def determine_agency_id(zip_path: Path, index: int) -> str:
     """Derive a deterministic agency identifier for the consolidated bundle."""
+
     stem = zip_path.stem
-    variant = stem.split("_")[-1].upper() if "_" in stem else stem.upper()
+    stem_upper = stem.upper()
+
+    if stem_upper in _STATIC_STEM_MAP:
+        return _STATIC_STEM_MAP[stem_upper]
+
+    variant = stem_upper.split("_")[-1] if "_" in stem_upper else stem_upper
     return _STATIC_VARIANT_MAP.get(variant, f"A{index + 1}")
 
 
