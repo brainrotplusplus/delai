@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -65,6 +66,32 @@ def test_endpoints_serve_files(tmp_path: Path) -> None:
     response = client.get(RAW_VEHICLE_POSITIONS_ROUTE)
     assert response.status_code == 200
     assert response.content == vehicle_bytes
+
+    incidents_path = servicealerts_dir / "raw_incidents.json"
+    response = client.get("/api/v1/incidents")
+    assert response.status_code == 200
+    assert json.loads(response.content.decode("utf-8")) == []
+
+    new_incident = {"id": "incident-1", "description": "Broken door"}
+    response = client.post("/api/v1/raw-incident", json=new_incident)
+    assert response.status_code == 201
+    assert json.loads(incidents_path.read_text(encoding="utf-8"))[0] == new_incident
+
+    approved_incident = {"id": "incident-1", "severity": "high"}
+    response = client.post("/api/v1/incidents", json=approved_incident)
+    assert response.status_code == 201
+
+    response = client.delete("/api/v1/incidents/incident-1")
+    assert response.status_code == 204
+    assert json.loads((servicealerts_dir / "approved_incidents.json").read_text(encoding="utf-8")) == []
+
+    dispatcher_alert = {"id": "alert-1", "message": "Manual alert"}
+    response = client.post("/api/v1/dispatcher-alerts", json=dispatcher_alert)
+    assert response.status_code == 201
+
+    response = client.delete("/api/v1/dispatcher-alerts/alert-1")
+    assert response.status_code == 204
+    assert json.loads((servicealerts_dir / "dispatcher_alerts.json").read_text(encoding="utf-8")) == []
 
 
 def test_missing_file_returns_404(tmp_path: Path) -> None:

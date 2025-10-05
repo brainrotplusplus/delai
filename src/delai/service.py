@@ -25,8 +25,8 @@ from .processors import (
     determine_agency_id,
     extract_zip,
     agency_id_from_filename,
+    process_service_alerts,
 )
-from .processors.alerts import process_service_alerts
 from .sources.base import DataSource, DownloadTarget
 
 LOGGER = logging.getLogger(__name__)
@@ -38,6 +38,11 @@ RAW_SERVICE_ALERTS_FILENAME = "RawServiceAlerts.pb"
 RAW_TRIP_UPDATES_FILENAME = "RawTripUpdates.pb"
 RAW_VEHICLE_POSITIONS_FILENAME = "RawVehiclePositions.pb"
 SERVICE_ALERTS_JSON_FILENAME = "alerts.json"
+APPROVED_ALERTS_PB_FILENAME = "approved_all_alerts.pb"
+RAW_INCIDENTS_FILENAME = "raw_incidents.json"
+APPROVED_INCIDENTS_FILENAME = "approved_incidents.json"
+DISPATCHER_ALERTS_FILENAME = "dispatcher_alerts.json"
+APPROVED_ALERTS_FILENAME = "approved_alerts.json"
 
 
 @dataclass(slots=True, frozen=True)
@@ -277,22 +282,28 @@ class DownloadService:
                 LOGGER.info("Generated consolidated ServiceAlerts feed at %s", consolidated_alerts)
 
                 alerts_json_path = alerts_dir / SERVICE_ALERTS_JSON_FILENAME
-                approved_alerts_path = alerts_dir / "approved_alerts.json"
-                approved_incidents_path = alerts_dir / "approved_incidents.json"
-                dispatcher_alerts_path = alerts_dir / "dispatcher_alerts.json"
+                approved_alerts_path = alerts_dir / APPROVED_ALERTS_FILENAME
+                approved_incidents_path = alerts_dir / APPROVED_INCIDENTS_FILENAME
+                dispatcher_alerts_path = alerts_dir / DISPATCHER_ALERTS_FILENAME
+                raw_incidents_path = alerts_dir / RAW_INCIDENTS_FILENAME
+                approved_alerts_pb_path = alerts_dir / APPROVED_ALERTS_PB_FILENAME
 
                 try:
-                    processed_alerts = process_service_alerts(
+                    alerts_output = process_service_alerts(
                         consolidated_alerts,
                         alerts_json_path,
                         approved_alerts_path,
                         approved_incidents_path,
                         dispatcher_alerts_path,
+                        raw_incidents_path,
+                        approved_alerts_pb_path,
                     )
                 except Exception:
                     LOGGER.exception("Failed to post-process consolidated ServiceAlerts feed")
                 else:
-                    final_artifacts.append(processed_alerts)
+                    final_artifacts.append(alerts_output.alerts_json)
+                    final_artifacts.append(alerts_output.approved_alerts_pb)
+
                 final_artifacts.append(consolidated_alerts)
 
         trip_inputs: list[TripUpdateInput] = []

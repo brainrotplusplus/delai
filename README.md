@@ -26,12 +26,18 @@ The service runs continuously until interrupted (Ctrl+C). Static GTFS bundles (i
 - `GET /api/v1/raw-service-alerts/RawServiceAlerts.pb` → `RawServiceAlerts.pb`
 - `GET /api/v1/raw-trip-updates/RawTripUpdates.pb` → `RawTripUpdates.pb`
 - `GET /api/v1/raw-vehicle-positions/RawVehiclePositions.pb` → `RawVehiclePositions.pb`
+- `GET /api/v1/incidents` → `raw_incidents.json`
+- `POST /api/v1/raw-incident` → append payload to `raw_incidents.json`
+- `POST /api/v1/incidents` / `DELETE /api/v1/incidents/{id}` → manage `approved_incidents.json`
+- `POST /api/v1/dispatcher-alerts` / `DELETE /api/v1/dispatcher-alerts/{id}` → manage `dispatcher_alerts.json`
+- `GET /api/v1/service-alerts` → enriched `alerts.json`
 - `GET /api/v1/service-alerts` → enriched `alerts.json`
 
 The downloader writes each feed under `output/<source>/<category>/...` for easy manual inspection.
 Realtime protobuf feeds (`*.pb`) are automatically converted to pretty-printed JSON files placed alongside the original binaries.
 Static GTFS bundles (`*.zip`) are unpacked into sibling directories so the raw `.txt` tables are immediately accessible.
 Additionally, all static bundles are merged into a consolidated `GTFS.zip` package with normalized identifiers across agencies.
+Every realtime refresh also produces two Service Alerts artifacts: the raw consolidated `RawServiceAlerts.pb` and a filtered `approved_all_alerts.pb` containing only alerts explicitly approved through the API flow (with the JSON-only `approved` flag stripped from the protobuf output).
 
 ## Development
 

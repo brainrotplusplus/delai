@@ -2,12 +2,22 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from google.protobuf.json_format import ParseDict
+from google.transit import gtfs_realtime_pb2
 
 from .realtime import convert_feed_to_json
 
 LOGGER = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceAlertsOutput:
+    alerts_json: Path
+    approved_alerts_pb: Path
 
 
 def process_service_alerts(
@@ -16,7 +26,9 @@ def process_service_alerts(
     approved_alerts_path: Path,
     approved_incidents_path: Path,
     dispatcher_alerts_path: Path,
-) -> Path:
+    raw_incidents_path: Path,
+    approved_alerts_pb_path: Path,
+) -> ServiceAlertsOutput:
     """Convert and enrich the consolidated ServiceAlerts feed.
 
     Steps:
@@ -74,7 +86,9 @@ def process_service_alerts(
         _write_json(approved_alerts_path, matched_entries)
 
     _write_json(output_json_path, data)
-    return output_json_path
+    _ensure_list_file(raw_incidents_path)
+    approved_pb = _write_approved_protobuf(data, approved_alerts_pb_path)
+    return ServiceAlertsOutput(output_json_path, approved_pb)
 
 
 def _ensure_approved(entity: dict[str, Any]) -> None:
@@ -145,3 +159,38 @@ def _write_json(path: Path, payload: Any) -> None:
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
         handle.write("\n")
+
+
+def _ensure_list_file(path: Path) -> None:
+    if path.exists():
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("[]\n", encoding="utf-8")
+
+
+def _write_approved_protobuf(payload: dict[str, Any], destination: Path) -> Path:
+    snapshot = json.loads(json.dumps(payload, ensure_ascii=False))
+
+    entities = snapshot.get("entity")
+    if isinstance(entities, list):
+        filtered: list[dict[str, Any]] = []
+        for entity in entities:
+            if not isinstance(entity, dict):
+                continue
+            alert = entity.get("alert")
+            if not isinstance(alert, dict):
+                continue
+            if not alert.get("approved"):
+                continue
+            alert.pop("approved", None)
+            filtered.append(entity)
+        snapshot["entity"] = filtered
+    else:
+        snapshot["entity"] = []
+
+    message = gtfs_realtime_pb2.FeedMessage()
+    ParseDict(snapshot, message, ignore_unknown_fields=True)
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(message.SerializeToString())
+    return destination

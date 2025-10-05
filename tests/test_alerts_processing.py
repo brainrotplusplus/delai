@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 from google.transit import gtfs_realtime_pb2
+from google.protobuf.json_format import MessageToDict
 
-from delai.processors.alerts import process_service_alerts
+from delai.processors.alerts import ServiceAlertsOutput, process_service_alerts
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -61,15 +62,18 @@ def test_process_service_alerts(tmp_path: Path) -> None:
 
     alerts_json_path = alerts_dir / "alerts.json"
 
-    result_path = process_service_alerts(
+    result = process_service_alerts(
         raw_pb,
         alerts_json_path,
         approved_path,
         alerts_dir / "approved_incidents.json",
         alerts_dir / "dispatcher_alerts.json",
+        alerts_dir / "raw_incidents.json",
+        alerts_dir / "approved_all_alerts.pb",
     )
 
-    data = json.loads(result_path.read_text(encoding="utf-8"))
+    assert isinstance(result, ServiceAlertsOutput)
+    data = json.loads(result.alerts_json.read_text(encoding="utf-8"))
     entities = data.get("entity", [])
     assert len(entities) == 3
 
@@ -82,6 +86,16 @@ def test_process_service_alerts(tmp_path: Path) -> None:
     updated_approved = json.loads(approved_path.read_text(encoding="utf-8"))
     assert updated_approved == [{"id": "base-alert"}]
 
+    pb_message = gtfs_realtime_pb2.FeedMessage()
+    pb_message.ParseFromString(result.approved_alerts_pb.read_bytes())
+    assert len(pb_message.entity) == 1
+    assert pb_message.entity[0].id == "base-alert"
+    pb_dict = MessageToDict(pb_message, preserving_proto_field_name=True)
+    assert "approved" not in pb_dict["entity"][0]["alert"]
+
+    raw_incidents = json.loads((alerts_dir / "raw_incidents.json").read_text(encoding="utf-8"))
+    assert raw_incidents == []
+
 
 def test_process_service_alerts_handles_missing_files(tmp_path: Path) -> None:
     alerts_dir = tmp_path / "servicealerts"
@@ -90,15 +104,21 @@ def test_process_service_alerts_handles_missing_files(tmp_path: Path) -> None:
 
     alerts_json_path = alerts_dir / "alerts.json"
 
-    process_service_alerts(
+    result = process_service_alerts(
         raw_pb,
         alerts_json_path,
         alerts_dir / "approved_alerts.json",
         alerts_dir / "approved_incidents.json",
         alerts_dir / "dispatcher_alerts.json",
+        alerts_dir / "raw_incidents.json",
+        alerts_dir / "approved_all_alerts.pb",
     )
 
-    data = json.loads(alerts_json_path.read_text(encoding="utf-8"))
+    data = json.loads(result.alerts_json.read_text(encoding="utf-8"))
     entity = data["entity"][0]
     assert entity["id"] == "base-alert"
     assert entity["alert"]["approved"] is False
+
+    pb_message = gtfs_realtime_pb2.FeedMessage()
+    pb_message.ParseFromString(result.approved_alerts_pb.read_bytes())
+    assert len(pb_message.entity) == 0

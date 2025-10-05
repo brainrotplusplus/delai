@@ -11,6 +11,7 @@ from .realtime_merge import (
     consolidate_trip_updates,
     consolidate_vehicle_positions,
 )
+from .alerts import ServiceAlertsOutput, process_service_alerts
 from .static_gtfs import (
     StaticFeedInput,
     consolidate_static_feeds,
@@ -30,4 +31,6 @@ __all__ = [
     "consolidate_service_alerts",
     "consolidate_trip_updates",
     "consolidate_vehicle_positions",
+     "process_service_alerts",
+    "ServiceAlertsOutput",
 ]
