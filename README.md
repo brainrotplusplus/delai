@@ -32,6 +32,8 @@ The service runs continuously until interrupted (Ctrl+C). Static GTFS bundles (i
 - `POST /api/v1/dispatcher-alerts` / `DELETE /api/v1/dispatcher-alerts/{id}` → manage `dispatcher_alerts.json`
 - `GET /api/v1/service-alerts` → enriched `alerts.json`
 
+Browser clients can consume these endpoints directly—Cross-Origin Resource Sharing (CORS) is enabled with `Access-Control-Allow-Origin: *`, and download responses expose the `Content-Disposition` header so filenames remain intact.
+
 The downloader writes each feed under `output/<source>/<category>/...` for easy manual inspection.
 Realtime protobuf feeds (`*.pb`) are automatically converted to pretty-printed JSON files placed alongside the original binaries.
 Static GTFS bundles (`*.zip`) are unpacked into sibling directories so the raw `.txt` tables are immediately accessible.

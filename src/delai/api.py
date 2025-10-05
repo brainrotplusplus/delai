@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from fastapi import FastAPI, HTTPException, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from .service import (
@@ -30,6 +31,13 @@ def create_app(output_dir: Path, source_slug: str) -> FastAPI:
     """Build the HTTP application exposing consolidated feed artifacts."""
 
     app = FastAPI(title="delai", version="0.1.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["Content-Disposition"],
+    )
     io_lock = threading.Lock()
     base_dir = output_dir / source_slug
     servicealerts_dir = base_dir / "servicealerts"

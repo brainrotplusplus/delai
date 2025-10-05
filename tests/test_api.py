@@ -45,19 +45,23 @@ def test_endpoints_serve_files(tmp_path: Path) -> None:
     app = create_app(tmp_path, source_slug)
     client = TestClient(app)
 
-    response = client.get(RAW_STATIC_ROUTE)
+    cors_headers = {"Origin": "http://localhost:3000"}
+
+    response = client.get(RAW_STATIC_ROUTE, headers=cors_headers)
     assert response.status_code == 200
     assert response.content == static_bytes
     assert response.headers["content-disposition"].endswith(f'filename="{CONSOLIDATED_STATIC_FILENAME}"')
+    assert response.headers["access-control-allow-origin"] == "*"
 
     response = client.get(RAW_SERVICE_ALERTS_ROUTE)
     assert response.status_code == 200
     assert response.content == service_alert_bytes
 
-    response = client.get("/api/v1/service-alerts")
+    response = client.get("/api/v1/service-alerts", headers=cors_headers)
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/json")
     assert response.json() == {}
+    assert response.headers["access-control-allow-origin"] == "*"
 
     response = client.get(RAW_TRIP_UPDATES_ROUTE)
     assert response.status_code == 200
