@@ -166,10 +166,10 @@ export function Incidents() {
                     className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none transition-all duration-200"
                   >
                     <option value="A1">Mobilis</option>
-                    <option value="A2">Trasa A2</option>
-                    <option value="A3">Trasa A3</option>
-                     <option value="A4">Trasa A2</option>
-                                        <option value="A5">Trasa A3</option>
+                    <option value="A2">MPK</option>
+                    <option value="A3">ZTP</option>
+                     <option value="A4">Koleje Małopolskie</option>
+                                        <option value="A5">Małopolskie Linie Dowozowe</option>
                   </select>
                 </div>
               </div>
