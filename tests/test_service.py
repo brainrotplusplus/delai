@@ -113,6 +113,27 @@ def test_service_with_no_sources(tmp_path: Path, caplog: pytest.LogCaptureFixtur
     assert "No data sources configured" in caplog.text
 
 
+def test_service_respects_target_filter(tmp_path: Path) -> None:
+    service = DownloadService(
+        sources=[DummySource()],
+        output_dir=tmp_path,
+        session_factory=DummySessionFactory(),
+        chunk_size=4,
+        cleanup_intermediate_files=False,
+    )
+
+    def only_a(_: DataSource, target: DownloadTarget) -> bool:
+        return target.relative_path.name == "a.txt"
+
+    results = service.run(target_filter=only_a)
+
+    assert len(results) == 1
+    assert results[0].output_path.name == "a.txt"
+
+    assert (tmp_path / "dummy" / "a.txt").exists()
+    assert not (tmp_path / "dummy" / "nested" / "b.txt").exists()
+
+
 class RealtimeSource(DataSource):
     def __init__(self) -> None:
         super().__init__(name="realtime", slug="realtime")

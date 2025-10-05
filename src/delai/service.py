@@ -52,7 +52,7 @@ class DownloadService:
         session_factory: Callable[[], requests.Session] | None = None,
         timeout: int = DEFAULT_TIMEOUT,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
-        cleanup_intermediate_files: bool = True,
+        cleanup_intermediate_files: bool = False,
     ) -> None:
         self._sources = list(sources)
         self._output_dir = Path(output_dir)
@@ -61,7 +61,10 @@ class DownloadService:
         self._chunk_size = chunk_size
         self._cleanup_enabled = cleanup_intermediate_files
 
-    def run(self) -> list[DownloadResult]:
+    def run(
+        self,
+        target_filter: Callable[[DataSource, DownloadTarget], bool] | None = None,
+    ) -> list[DownloadResult]:
         if not self._sources:
             LOGGER.warning("No data sources configured. Nothing to download.")
             return []
@@ -77,7 +80,7 @@ class DownloadService:
             )
             for source in self._sources:
                 LOGGER.info("Processing source %s", source.name)
-                for result in self._download_source(session, source):
+                for result in self._download_source(session, source, target_filter):
                     results.append(result)
                     intermediate_paths.add(result.output_path)
                     intermediate_paths.update(result.derived_paths)
@@ -101,9 +104,14 @@ class DownloadService:
         return results
 
     def _download_source(
-        self, session: requests.Session, source: DataSource
+        self,
+        session: requests.Session,
+        source: DataSource,
+        target_filter: Callable[[DataSource, DownloadTarget], bool] | None = None,
     ) -> Iterable[DownloadResult]:
         for target in source.iter_targets():
+            if target_filter is not None and not target_filter(source, target):
+                continue
             yield self._download_target(session, source, target)
 
     def _download_target(

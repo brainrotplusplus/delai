@@ -14,11 +14,13 @@ pip install -e .[test]
 # pip install -r requirements.txt
 ```
 
-To download the latest GTFS bundles and realtime protobuf feeds into the local `output/` directory, run:
+To start the service and keep GTFS bundles up to date in the local `output/` directory, run:
 
 ```bash
 python -m delai --output output
 ```
+
+The service runs continuously until interrupted (Ctrl+C). Static GTFS bundles are refreshed immediately on start and then every day at 03:00 local time. Realtime protobuf feeds are fetched every 15 seconds.
 
 The downloader writes each feed under `output/<source>/<category>/...` for easy manual inspection.
 Realtime protobuf feeds (`*.pb`) are automatically converted to pretty-printed JSON files placed alongside the original binaries.
