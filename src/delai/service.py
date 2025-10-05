@@ -251,7 +251,7 @@ class DownloadService:
             alerts_inputs.append(ServiceAlertInput(result.output_path, agency_id))
 
         if alerts_inputs:
-            output_path = service_alert_results[0].output_path.with_name("ServiceAlerts.pb")
+            output_path = service_alert_results[0].output_path.with_name("RawServiceAlerts.pb")
 
             try:
                 consolidated_alerts = consolidate_service_alerts(alerts_inputs, output_path)
@@ -285,7 +285,7 @@ class DownloadService:
             trip_inputs.append(TripUpdateInput(result.output_path, agency_id))
 
         if trip_inputs:
-            trip_output = trip_update_results[0].output_path.with_name("TripUpdates.pb")
+            trip_output = trip_update_results[0].output_path.with_name("RawTripUpdates.pb")
 
             try:
                 consolidated_trips = consolidate_trip_updates(trip_inputs, trip_output)
@@ -319,7 +319,7 @@ class DownloadService:
             vehicle_inputs.append(VehiclePositionInput(result.output_path, agency_id))
 
         if vehicle_inputs:
-            vehicle_output = vehicle_results[0].output_path.with_name("VehiclePositions.pb")
+            vehicle_output = vehicle_results[0].output_path.with_name("RawVehiclePositions.pb")
 
             try:
                 consolidated_vehicles = consolidate_vehicle_positions(vehicle_inputs, vehicle_output)
