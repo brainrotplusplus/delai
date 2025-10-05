@@ -51,6 +51,13 @@ def create_app(output_dir: Path, source_slug: str) -> FastAPI:
         }.get(path.suffix.lower(), "application/octet-stream")
         return FileResponse(path, media_type=media_type, filename=path.name)
 
+    def _load_json_document(path: Path) -> Any:
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except Exception as exc:  # pragma: no cover - defensive
+            raise HTTPException(status_code=500, detail=f"Failed to read {path.name}") from exc
+
     @app.get(RAW_STATIC_ROUTE)
     def get_raw_static() -> FileResponse:
         path = _resolve_path(lambda base: base / "static" / CONSOLIDATED_STATIC_FILENAME)
@@ -76,11 +83,11 @@ def create_app(output_dir: Path, source_slug: str) -> FastAPI:
         return _serve(path)
 
     @app.get("/api/v1/service-alerts")
-    def get_processed_service_alerts() -> FileResponse:
+    def get_processed_service_alerts() -> Any:
         path = _resolve_path(
             lambda base: base / "servicealerts" / SERVICE_ALERTS_JSON_FILENAME
         )
-        return _serve(path)
+        return _load_json_document(path)
 
     def _load_list(path: Path) -> list[Any]:
         if not path.exists():
@@ -119,9 +126,9 @@ def create_app(output_dir: Path, source_slug: str) -> FastAPI:
         return payload
 
     @app.get("/api/v1/incidents")
-    def get_raw_incidents() -> FileResponse:
+    def get_raw_incidents() -> list[Any]:
         _ensure_list_file(raw_incidents_path)
-        return _serve(raw_incidents_path)
+        return _load_list(raw_incidents_path)
 
     @app.post("/api/v1/raw-incident", status_code=status.HTTP_201_CREATED)
     def post_raw_incident(payload: Any) -> dict[str, Any]:
