@@ -51,7 +51,7 @@ def static_dirs(tmp_path: Path) -> list[StaticFeedInput]:
 
 
 def test_consolidate_static_feeds(static_dirs: list[StaticFeedInput], tmp_path: Path) -> None:
-    output_zip = consolidate_static_feeds(static_dirs, tmp_path / "GTFS_KRK.zip")
+    output_zip = consolidate_static_feeds(static_dirs, tmp_path / "GTFS.zip")
 
     assert output_zip.exists()
 

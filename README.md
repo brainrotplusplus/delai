@@ -25,7 +25,7 @@ The service runs continuously until interrupted (Ctrl+C). Static GTFS bundles (i
 The downloader writes each feed under `output/<source>/<category>/...` for easy manual inspection.
 Realtime protobuf feeds (`*.pb`) are automatically converted to pretty-printed JSON files placed alongside the original binaries.
 Static GTFS bundles (`*.zip`) are unpacked into sibling directories so the raw `.txt` tables are immediately accessible.
-Additionally, the three static bundles are merged into a consolidated `GTFS_KRK.zip` package with normalized identifiers across agencies.
+Additionally, all static bundles are merged into a consolidated `GTFS.zip` package with normalized identifiers across agencies.
 
 ## Development
 

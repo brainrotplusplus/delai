@@ -13,7 +13,7 @@ class KrakowGTFSDataSource(DataSource):
     """Static definition of the publicly available GTFS feeds for Kraków."""
 
     def __init__(self) -> None:
-        super().__init__(name="ZTP Kraków GTFS", slug="krakow-gtfs")
+        super().__init__(name="GTFS", slug="krakow-gtfs")
         self._targets: tuple[DownloadTarget, ...] = tuple(_build_targets())
 
     def iter_targets(self) -> Iterable[DownloadTarget]:

@@ -257,7 +257,7 @@ def test_service_cleans_intermediate_files_by_default(tmp_path: Path) -> None:
     original_zip = result.output_path
     extracted_dir = result.derived_paths[0]
 
-    consolidated_zip = original_zip.parent / "GTFS_KRK.zip"
+    consolidated_zip = original_zip.parent / "GTFS.zip"
 
     assert consolidated_zip.exists()
     assert not original_zip.exists()

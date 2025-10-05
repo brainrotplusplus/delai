@@ -79,7 +79,7 @@ class DownloadService:
                 "User-Agent", "delai/0.1 (+https://github.com/brainrotplusplus/delai)"
             )
             for source in self._sources:
-                LOGGER.info("Processing source %s", source.name)
+                LOGGER.info("Processing source %s.", source.name)
                 for result in self._download_source(session, source, target_filter):
                     results.append(result)
                     intermediate_paths.add(result.output_path)

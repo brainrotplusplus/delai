@@ -51,7 +51,7 @@ def consolidate_static_feeds(
         raise ValueError("No static feeds provided for consolidation")
 
     if output_zip is None:
-        output_zip = feeds[0].zip_path.parent / "GTFS_KRK.zip"
+        output_zip = feeds[0].zip_path.parent / "GTFS.zip"
 
     aggregated: dict[str, dict[str, list]] = {}
     blocks_captured = False
