@@ -26,6 +26,7 @@ from .processors import (
     extract_zip,
     agency_id_from_filename,
 )
+from .processors.alerts import process_service_alerts
 from .sources.base import DataSource, DownloadTarget
 
 LOGGER = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ CONSOLIDATED_STATIC_FILENAME = "GTFS.zip"
 RAW_SERVICE_ALERTS_FILENAME = "RawServiceAlerts.pb"
 RAW_TRIP_UPDATES_FILENAME = "RawTripUpdates.pb"
 RAW_VEHICLE_POSITIONS_FILENAME = "RawVehiclePositions.pb"
+SERVICE_ALERTS_JSON_FILENAME = "alerts.json"
 
 
 @dataclass(slots=True, frozen=True)
@@ -262,6 +264,7 @@ class DownloadService:
             alerts_inputs.append(ServiceAlertInput(result.output_path, agency_id))
 
         if alerts_inputs:
+            alerts_dir = service_alert_results[0].output_path.parent
             output_path = service_alert_results[0].output_path.with_name(
                 RAW_SERVICE_ALERTS_FILENAME
             )
@@ -273,13 +276,23 @@ class DownloadService:
             else:
                 LOGGER.info("Generated consolidated ServiceAlerts feed at %s", consolidated_alerts)
 
-                try:
-                    alerts_json = convert_feed_to_json(consolidated_alerts)
-                except Exception:
-                    LOGGER.exception("Failed to render consolidated ServiceAlerts feed as JSON")
-                else:
-                    extra_intermediate.append(alerts_json)
+                alerts_json_path = alerts_dir / SERVICE_ALERTS_JSON_FILENAME
+                approved_alerts_path = alerts_dir / "approved_alerts.json"
+                approved_incidents_path = alerts_dir / "approved_incidents.json"
+                dispatcher_alerts_path = alerts_dir / "dispatcher_alerts.json"
 
+                try:
+                    processed_alerts = process_service_alerts(
+                        consolidated_alerts,
+                        alerts_json_path,
+                        approved_alerts_path,
+                        approved_incidents_path,
+                        dispatcher_alerts_path,
+                    )
+                except Exception:
+                    LOGGER.exception("Failed to post-process consolidated ServiceAlerts feed")
+                else:
+                    final_artifacts.append(processed_alerts)
                 final_artifacts.append(consolidated_alerts)
 
         trip_inputs: list[TripUpdateInput] = []

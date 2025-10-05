@@ -22,10 +22,11 @@ python -m delai --output output
 
 The service runs continuously until interrupted (Ctrl+C). Static GTFS bundles (including the Koleje Małopolskie SKA and ALD feeds) are refreshed immediately on start and then every day at 03:00 local time. Realtime protobuf feeds are fetched every 15 seconds. While the downloader runs, an HTTP API is exposed on port 2137 with the following endpoints:
 
-- `GET /api/v1/raw-static` → consolidated `GTFS.zip`
-- `GET /api/v1/raw-service-alerts` → `RawServiceAlerts.pb`
-- `GET /api/v1/raw-trip-updates` → `RawTripUpdates.pb`
-- `GET /api/v1/raw-vehicle-positions` → `RawVehiclePositions.pb`
+- `GET /api/v1/raw-static/GTFS.zip` → consolidated `GTFS.zip`
+- `GET /api/v1/raw-service-alerts/RawServiceAlerts.pb` → `RawServiceAlerts.pb`
+- `GET /api/v1/raw-trip-updates/RawTripUpdates.pb` → `RawTripUpdates.pb`
+- `GET /api/v1/raw-vehicle-positions/RawVehiclePositions.pb` → `RawVehiclePositions.pb`
+- `GET /api/v1/service-alerts` → enriched `alerts.json`
 
 The downloader writes each feed under `output/<source>/<category>/...` for easy manual inspection.
 Realtime protobuf feeds (`*.pb`) are automatically converted to pretty-printed JSON files placed alongside the original binaries.

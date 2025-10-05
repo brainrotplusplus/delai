@@ -11,7 +11,14 @@ from .service import (
     RAW_SERVICE_ALERTS_FILENAME,
     RAW_TRIP_UPDATES_FILENAME,
     RAW_VEHICLE_POSITIONS_FILENAME,
+    SERVICE_ALERTS_JSON_FILENAME,
 )
+
+
+RAW_STATIC_ROUTE = f"/api/v1/raw-static/{CONSOLIDATED_STATIC_FILENAME}"
+RAW_SERVICE_ALERTS_ROUTE = f"/api/v1/raw-service-alerts/{RAW_SERVICE_ALERTS_FILENAME}"
+RAW_TRIP_UPDATES_ROUTE = f"/api/v1/raw-trip-updates/{RAW_TRIP_UPDATES_FILENAME}"
+RAW_VEHICLE_POSITIONS_ROUTE = f"/api/v1/raw-vehicle-positions/{RAW_VEHICLE_POSITIONS_FILENAME}"
 
 
 def create_app(output_dir: Path, source_slug: str) -> FastAPI:
@@ -30,30 +37,38 @@ def create_app(output_dir: Path, source_slug: str) -> FastAPI:
         media_type = {
             ".zip": "application/zip",
             ".pb": "application/octet-stream",
+            ".json": "application/json",
         }.get(path.suffix.lower(), "application/octet-stream")
         return FileResponse(path, media_type=media_type, filename=path.name)
 
-    @app.get("/api/v1/raw-static")
+    @app.get(RAW_STATIC_ROUTE)
     def get_raw_static() -> FileResponse:
         path = _resolve_path(lambda base: base / "static" / CONSOLIDATED_STATIC_FILENAME)
         return _serve(path)
 
-    @app.get("/api/v1/raw-service-alerts")
+    @app.get(RAW_SERVICE_ALERTS_ROUTE)
     def get_raw_service_alerts() -> FileResponse:
         path = _resolve_path(
             lambda base: base / "servicealerts" / RAW_SERVICE_ALERTS_FILENAME
         )
         return _serve(path)
 
-    @app.get("/api/v1/raw-trip-updates")
+    @app.get(RAW_TRIP_UPDATES_ROUTE)
     def get_raw_trip_updates() -> FileResponse:
         path = _resolve_path(lambda base: base / "tripupdates" / RAW_TRIP_UPDATES_FILENAME)
         return _serve(path)
 
-    @app.get("/api/v1/raw-vehicle-positions")
+    @app.get(RAW_VEHICLE_POSITIONS_ROUTE)
     def get_raw_vehicle_positions() -> FileResponse:
         path = _resolve_path(
             lambda base: base / "vehiclepositions" / RAW_VEHICLE_POSITIONS_FILENAME
+        )
+        return _serve(path)
+
+    @app.get("/api/v1/service-alerts")
+    def get_processed_service_alerts() -> FileResponse:
+        path = _resolve_path(
+            lambda base: base / "servicealerts" / SERVICE_ALERTS_JSON_FILENAME
         )
         return _serve(path)
 
