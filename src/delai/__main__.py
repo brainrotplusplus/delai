@@ -2,11 +2,18 @@ from __future__ import annotations
 
 import argparse
 import logging
+import threading
 import time
 from datetime import datetime, time as dt_time, timedelta
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Sequence, TYPE_CHECKING
 
+if TYPE_CHECKING:  # pragma: no cover - type checking helper
+    from threading import Event
+
+import uvicorn
+
+from .api import create_app
 from .config import ServiceConfig, default_config
 from .service import DownloadResult, DownloadService
 from .sources.base import DataSource, DownloadTarget
@@ -35,6 +42,17 @@ def build_parser() -> argparse.ArgumentParser:
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Configure logging level",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=2137,
+        help="Port where the HTTP API should listen",
+    )
+    parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host/IP where the HTTP API should listen",
     )
     return parser
 
@@ -106,7 +124,7 @@ def _next_static_refresh(after: datetime) -> datetime:
     return candidate
 
 
-def run_forever(service: DownloadService) -> None:
+def run_forever(service: DownloadService, stop_event: "Event" | None = None) -> None:
     RUNNER_LOGGER.info("Download service entering continuous mode")
 
     now = datetime.now()
@@ -122,7 +140,7 @@ def run_forever(service: DownloadService) -> None:
 
     realtime_next = datetime.now()
 
-    while True:
+    while stop_event is None or not stop_event.is_set():
         now = datetime.now()
 
         if now >= static_next:
@@ -147,9 +165,15 @@ def run_forever(service: DownloadService) -> None:
         sleep_seconds = (next_event - datetime.now()).total_seconds()
 
         if sleep_seconds > 0:
-            time.sleep(min(sleep_seconds, MAX_IDLE_SLEEP))
+            timeout = min(sleep_seconds, MAX_IDLE_SLEEP)
         else:
-            time.sleep(0.5)
+            timeout = 0.5
+
+        if stop_event is not None:
+            if stop_event.wait(timeout=timeout):
+                break
+        else:
+            time.sleep(timeout)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -161,10 +185,30 @@ def main(argv: Sequence[str] | None = None) -> int:
     config = default_config(output_dir=args.output)
     service = DownloadService(config.sources, config.output_dir)
 
+    if not config.sources:
+        RUNNER_LOGGER.warning("No data sources configured. The API will serve 404 responses.")
+        primary_slug = "default"
+    else:
+        primary_slug = config.sources[0].slug
+
+    stop_event = threading.Event()
+    worker = threading.Thread(
+        target=run_forever,
+        args=(service, stop_event),
+        name="delai-downloader",
+        daemon=True,
+    )
+    worker.start()
+
+    app = create_app(config.output_dir, primary_slug)
+
     try:
-        run_forever(service)
+        uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level.lower())
     except KeyboardInterrupt:  # pragma: no cover - interactive loop
         RUNNER_LOGGER.info("Shutdown requested. Exiting.")
+    finally:
+        stop_event.set()
+        worker.join(timeout=5)
 
     return 0
 

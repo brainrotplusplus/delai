@@ -5,7 +5,10 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, Sequence, TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover - type checking helper
+    from threading import Event
 
 import requests
 
@@ -28,6 +31,11 @@ from .sources.base import DataSource, DownloadTarget
 LOGGER = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 60  # seconds
 DEFAULT_CHUNK_SIZE = 1024 * 1024  # 1 MiB
+
+CONSOLIDATED_STATIC_FILENAME = "GTFS.zip"
+RAW_SERVICE_ALERTS_FILENAME = "RawServiceAlerts.pb"
+RAW_TRIP_UPDATES_FILENAME = "RawTripUpdates.pb"
+RAW_VEHICLE_POSITIONS_FILENAME = "RawVehiclePositions.pb"
 
 
 @dataclass(slots=True, frozen=True)
@@ -221,7 +229,10 @@ class DownloadService:
             return [], []
 
         try:
-            consolidated_path = consolidate_static_feeds(feeds)
+            consolidated_path = consolidate_static_feeds(
+                feeds,
+                static_results[0].output_path.parent / CONSOLIDATED_STATIC_FILENAME,
+            )
         except Exception:
             LOGGER.exception("Failed to consolidate static GTFS bundles")
             return [], []
@@ -251,7 +262,9 @@ class DownloadService:
             alerts_inputs.append(ServiceAlertInput(result.output_path, agency_id))
 
         if alerts_inputs:
-            output_path = service_alert_results[0].output_path.with_name("RawServiceAlerts.pb")
+            output_path = service_alert_results[0].output_path.with_name(
+                RAW_SERVICE_ALERTS_FILENAME
+            )
 
             try:
                 consolidated_alerts = consolidate_service_alerts(alerts_inputs, output_path)
@@ -285,7 +298,9 @@ class DownloadService:
             trip_inputs.append(TripUpdateInput(result.output_path, agency_id))
 
         if trip_inputs:
-            trip_output = trip_update_results[0].output_path.with_name("RawTripUpdates.pb")
+            trip_output = trip_update_results[0].output_path.with_name(
+                RAW_TRIP_UPDATES_FILENAME
+            )
 
             try:
                 consolidated_trips = consolidate_trip_updates(trip_inputs, trip_output)
@@ -319,7 +334,9 @@ class DownloadService:
             vehicle_inputs.append(VehiclePositionInput(result.output_path, agency_id))
 
         if vehicle_inputs:
-            vehicle_output = vehicle_results[0].output_path.with_name("RawVehiclePositions.pb")
+            vehicle_output = vehicle_results[0].output_path.with_name(
+                RAW_VEHICLE_POSITIONS_FILENAME
+            )
 
             try:
                 consolidated_vehicles = consolidate_vehicle_positions(vehicle_inputs, vehicle_output)

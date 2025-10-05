@@ -12,6 +12,8 @@ dependencies = [
     "requests>=2.31,<3.0",
     "gtfs-realtime-bindings>=1.0,<2.0",
     "protobuf>=4.24,<5.0",
+    "fastapi>=0.110,<1.0",
+    "uvicorn>=0.23,<1.0",
 ]
 authors = [
     { name = "brainrotplusplus" }
